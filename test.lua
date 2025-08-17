@@ -31,39 +31,36 @@ function initLibrary()
         return result
     end
 
-    function utility.create(class, properties)
-        properties = properties or {}
-        
-        -- Generate random name for the instance
-        properties.Name = properties.Name or randomName(12)
-        
-        local obj = Instance.new(class)
+   function utility.create(class, properties)
+    properties = properties or {}
+    
+    -- Generate random name for the instance
+    properties.Name = properties.Name or randomName(12)
+    
+    local obj = Instance.new(class)
 
-        local forcedProperties = {
-            AutoButtonColor = false
-        }
+    local forcedProperties = {
+        AutoButtonColor = false
+    }
 
-        for prop, v in next, properties do
+    -- Set regular properties
+    for prop, v in next, properties do
+        if typeof(obj[prop]) == "Instance" and typeof(v) ~= "Instance" then
+            warn(`Invalid value for property {prop}: expected Instance, got {typeof(v)}`)
+        else
             obj[prop] = v
         end
-
-        for prop, v in next, forcedProperties do
-            pcall(function()
-                obj[prop] = v
-            end)
-        end
-        
-        return obj
     end
 
-       function utility.change_color(color, amount)
-        local r = math.clamp(math.floor(color.r * 255) + amount, 0, 255)
-        local g = math.clamp(math.floor(color.g * 255) + amount, 0, 255)
-        local b = math.clamp(math.floor(color.b * 255) + amount, 0, 255)
-
-
-        return Color3.fromRGB(r, g, b)
+    -- Set forced properties
+    for prop, v in next, forcedProperties do
+        pcall(function()
+            obj[prop] = v
+        end)
     end
+    
+    return obj
+end
 
 
     function utility.get_rgb(color)
