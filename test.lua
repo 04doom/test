@@ -1,66 +1,64 @@
 function initLibrary()
     local folderName = "42X"
 
+
     if not isfolder(folderName) then
         makefolder(folderName)
     end
 
+
     local gameConfigFolder = folderName .. "/" .. game.PlaceId
+
 
     if not isfolder(gameConfigFolder) then
         makefolder(gameConfigFolder)
     end
+
 
     local inputService = game:GetService("UserInputService")
     local tweenService = game:GetService("TweenService")
     local runService = game:GetService("RunService")
     local coreGui = game:GetService("CoreGui")
 
+
     local utility = {}
 
-    -- Function to generate random names for internal elements
-    local function randomName(length)
-        local chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
-        local result = ""
-        
-        for i = 1, length do
-            local index = math.random(1, #chars)
-            result = result .. chars:sub(index, index)
-        end
-        
-        return result
-    end
 
-   function utility.create(class, properties)
-    properties = properties or {}
-    
-    -- Generate random name for the instance
-    properties.Name = properties.Name or randomName(12)
-    
-    local obj = Instance.new(class)
+    function utility.create(class, properties)
+        properties = properties or {}
 
-    local forcedProperties = {
-        AutoButtonColor = false
-    }
 
-    -- Set regular properties
-    for prop, v in next, properties do
-        if typeof(obj[prop]) == "Instance" and typeof(v) ~= "Instance" then
-            warn(`Invalid value for property {prop}: expected Instance, got {typeof(v)}`)
-        else
+        local obj = Instance.new(class)
+
+
+        local forcedProperties = {
+            AutoButtonColor = false
+        }
+
+
+        for prop, v in next, properties do
             obj[prop] = v
         end
+
+
+        for prop, v in next, forcedProperties do
+            pcall(function()
+                obj[prop] = v
+            end)
+        end
+        
+        return obj
     end
 
-    -- Set forced properties
-    for prop, v in next, forcedProperties do
-        pcall(function()
-            obj[prop] = v
-        end)
+
+    function utility.change_color(color, amount)
+        local r = math.clamp(math.floor(color.r * 255) + amount, 0, 255)
+        local g = math.clamp(math.floor(color.g * 255) + amount, 0, 255)
+        local b = math.clamp(math.floor(color.b * 255) + amount, 0, 255)
+
+
+        return Color3.fromRGB(r, g, b)
     end
-    
-    return obj
-end
 
 
     function utility.get_rgb(color)
@@ -160,7 +158,9 @@ end
         dragSpeed = 0.1
     }    
 
+
     local coloredGradients = {}
+
 
     function library:SetColor(color)
         for _, obj in next, coloredGradients do
@@ -170,20 +170,163 @@ end
             }
         end
 
+
         library.color = color
     end
 
+
     local gui = utility.create("ScreenGui")
+    local function randomString(length)
+    local chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+    local result = ""
     
+    for i = 1, length do
+        local index = math.random(1, #chars)
+        result = result .. chars:sub(index, index)
+    end
+    
+    return result
+    end
+
+    inputService.InputBegan:Connect(function(input)
+        if input.KeyCode == library.keybind then
+            library.toggled = not library.toggled
+            gui.Enabled = library.toggled
+        end
+    end)
+
+
     if syn and syn.protect_gui then
         syn.protect_gui(gui)
     end
     
+    gui.Name = randomString(16)
     gui.Parent = gethui() or coreGui
+    gui.DisplayOrder = 999999
+    gui.ResetOnSpawn = false
 
     local flags = {toggles = {}, boxes = {}, sliders = {}, dropdowns = {}, multidropdowns = {}, keybinds = {}, colorpickers = {}}
 
-    -- ... (rest of the config functions remain the same) ...
+
+    function library:LoadConfig(file)
+        local str = readfile(gameConfigFolder .. "/" .. file .. ".cfg")
+        local tbl = loadstring(str)()
+        
+        for flag, value in next, tbl.toggles do
+            flags.toggles[flag](value)
+        end
+
+
+        for flag, value in next, tbl.boxes do
+            flags.boxes[flag](value)
+        end
+
+
+        for flag, value in next, tbl.sliders do
+            flags.sliders[flag](value)
+        end
+
+
+        for flag, value in next, tbl.dropdowns do
+            flags.dropdowns[flag](value)
+        end
+
+
+        for flag, value in next, tbl.multidropdowns do
+            flags.multidropdowns[flag](value)
+        end
+
+
+        for flag, value in next, tbl.keybinds do
+            flags.keybinds[flag](value)
+        end
+
+
+        for flag, value in next, tbl.colorpickers do
+            flags.colorpickers[flag](value)
+        end
+    end
+
+
+    function library:SaveConfig(name)
+        local configstr = "{toggles={"
+        local count = 0
+
+
+        for flag, _ in next, flags.toggles do
+            count = count + 1
+            configstr = configstr .. "['" .. flag .. "']=" .. tostring(library.flags[flag]) .. ","
+        end
+
+
+        configstr = (count > 0 and configstr:sub(1, -2) or configstr) .. "},boxes={"
+
+
+        count = 0
+        for flag, _ in next, flags.boxes do
+            count = count + 1
+            configstr = configstr .. "['" .. flag .. "']='" .. tostring(library.flags[flag]) .. "',"
+        end
+
+
+        configstr = (count > 0 and configstr:sub(1, -2) or configstr) .. "},sliders={"
+
+
+        count = 0
+        for flag, _ in next, flags.sliders do
+            count = count + 1
+            configstr = configstr .. "['" .. flag .. "']=" .. tostring(library.flags[flag]) .. ","
+        end
+
+
+        configstr = (count > 0 and configstr:sub(1, -2) or configstr) .. "},dropdowns={"
+
+
+        count = 0
+        for flag, _ in next, flags.dropdowns do
+            count = count + 1
+            configstr = configstr .. "['" .. flag .. "']='" .. tostring(library.flags[flag]) .. "',"
+        end
+
+
+        configstr = (count > 0 and configstr:sub(1, -2) or configstr) .. "},multidropdowns={"
+
+
+        count = 0
+        for flag, _ in next, flags.multidropdowns do
+            count = count + 1
+            configstr = configstr .. "['" .. flag .. "']={'" .. table.concat(library.flags[flag], "','") .. "'},"
+        end
+
+
+        configstr = (count > 0 and configstr:sub(1, -2) or configstr) .. "},keybinds={"
+
+
+        count = 0
+        for flag, _ in next, flags.keybinds do
+            count = count + 1
+            configstr = configstr .. "['" .. flag .. "']=" .. tostring(library.flags[flag]) .. ","
+        end
+
+
+        configstr = (count > 0 and configstr:sub(1, -2) or configstr) .. "},colorpickers={"
+
+
+        count = 0
+        for flag, _ in next, flags.colorpickers do
+            count = count + 1
+            configstr = configstr .. "['" .. flag .. "']=Color3.new(" .. tostring(library.flags[flag]) .. "),"
+        end
+
+
+        configstr = (count > 0 and configstr:sub(1, -2) or configstr) .. "}}"
+
+
+        writefile(gameConfigFolder .. "/" .. name .. ".cfg", "return " .. configstr)
+    end
+
+
+
 
     function library:Load(opts)
         local options = utility.table(opts)
@@ -193,7 +336,9 @@ end
         local color = options.color or Color3.fromRGB(255, 255, 255)
         local dragSpeed = options.dragSpeed or 0
 
+
         library.color = color
+
 
         local topbar = utility.create("Frame", {
             ZIndex = 2,
@@ -204,7 +349,9 @@ end
             Parent = gui
         })
 
+
         utility.drag(topbar, dragSpeed)
+
 
         utility.create("TextLabel", {
             ZIndex = 3,
@@ -214,7 +361,7 @@ end
             FontSize = Enum.FontSize.Size14,
             TextSize = 14,
             TextColor3 = Color3.fromRGB(255, 255, 255),
-            Text = name,  -- Displayed name remains unchanged
+            Text = name,
             Font = Enum.Font.GothamSemibold,
             TextXAlignment = Enum.TextXAlignment.Left,
             Parent = topbar
@@ -226,6 +373,7 @@ end
             BackgroundColor3 = Color3.fromRGB(32, 32, 32),
             Parent = topbar
         })
+
 
         local tabs = utility.create("Frame", {
             ZIndex = 2,
@@ -245,11 +393,13 @@ end
             Parent = main
         })
 
+
         local tabTogglesHolder = utility.create("Frame", {
             Size = UDim2.new(1, -12, 1, 0),
             Position = UDim2.new(0, 6, 0, 0),
             Parent = tabToggles
         })
+
 
         utility.create("UIListLayout", {
             FillDirection = Enum.FillDirection.Horizontal,
@@ -258,21 +408,27 @@ end
             Parent = tabTogglesHolder
         })
 
+
         local windowTypes = utility.table({count = 0})
+
 
         function windowTypes:Show()
             gui.Enabled = true
         end
 
+
         function windowTypes:Hide()
             gui.Enabled = false
         end
+
 
         function windowTypes:Tab(name)
             windowTypes.count = windowTypes.count + 1
             name = name or "Tab"
 
+
             local toggled = windowTypes.count == 1
+
 
             local tabToggle = utility.create("TextButton", {
                 ZIndex = 3,
@@ -281,12 +437,13 @@ end
                 FontSize = Enum.FontSize.Size14,
                 TextSize = 14,
                 TextColor3 = Color3.fromRGB(255, 255, 255),
-                Text = name,  -- Displayed tab name remains unchanged
+                Text = name,
                 Font = toggled and Enum.Font.GothamSemibold or Enum.Font.Gotham,
                 Parent = tabTogglesHolder
             })
             
             tabToggle.Size = UDim2.new(0, tabToggle.TextBounds.X + 12, 1, 0)
+
 
             local tab = utility.create("Frame", {
                 Size = UDim2.new(1, 0, 1, 0),
@@ -296,9 +453,83 @@ end
                 Parent = tabs
             })
             
-            -- ... (rest of the tab creation code remains the same, with displayed text unchanged) ...
+            local column1 = utility.create("ScrollingFrame", {
+                Size = UDim2.new(0.5, -2, 1, 0),
+                BackgroundTransparency = 1,
+                Active = true,
+                BorderSizePixel = 0,
+                BackgroundColor3 = Color3.fromRGB(255, 255, 255),
+                ScrollBarImageColor3 = Color3.fromRGB(0, 0, 0),
+                ScrollBarImageTransparency = 1,
+                ScrollBarThickness = 0,
+                Parent = tab
+            })
+
+
+            local column1List = utility.create("UIListLayout", {
+                SortOrder = Enum.SortOrder.LayoutOrder,
+                Padding = UDim.new(0, 6),
+                Parent = column1
+            })
+
+
+            column1List:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+                column1.CanvasSize = UDim2.new(0, 0, 0, column1List.AbsoluteContentSize.Y)
+            end)
+
+
+            local column2 = utility.create("ScrollingFrame", {
+                Size = UDim2.new(0.5, -2, 1, 0),
+                BackgroundTransparency = 1,
+                Position = UDim2.new(0.5, 2, 0, 0),
+                Active = true,
+                BorderSizePixel = 0,
+                BackgroundColor3 = Color3.fromRGB(255, 255, 255),
+                ScrollBarImageColor3 = Color3.fromRGB(0, 0, 0),
+                ScrollBarImageTransparency = 1,
+                ScrollBarThickness = 0,
+                CanvasPosition = Vector2.new(0, 150),
+                Parent = tab
+            })
+
+
+            local column2List = utility.create("UIListLayout", {
+                SortOrder = Enum.SortOrder.LayoutOrder,
+                Padding = UDim.new(0, 6),
+                Parent = column2
+            })
+
+
+            column2List:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+                column2.CanvasSize = UDim2.new(0, 0, 0, column2List.AbsoluteContentSize.Y)
+            end)
+
+
+            local function openTab()
+                for _, obj in next, tabTogglesHolder:GetChildren() do
+                    if obj:IsA("TextButton") then
+                        obj.Font = Enum.Font.Gotham
+                    end
+                end
+
+
+                tabToggle.Font = Enum.Font.GothamSemibold
+
+
+                for _, obj in next, tabs:GetChildren() do
+                    obj.Visible = false
+                end
+
+
+                tab.Visible = true
+            end
+
+
+            tabToggle.MouseButton1Click:Connect(openTab)
+
 
             local tabTypes = utility.table()
+
 
             function tabTypes:Open()
                 openTab()
@@ -306,10 +537,10 @@ end
         
             function tabTypes:Section(opts)
                 local options = utility.table(opts)
-                local name = options.name or "Section"  -- Displayed section name remains unchanged
+                local name = options.name or "Section"
                 local column = options.column or 1
                 
- local columnFrame = column == 1 and column1 or column == 2 and column2
+                local columnFrame = column == 1 and column1 or column == 2 and column2
                 
                 local sectionHolder = utility.create("Frame", {
                     Size = UDim2.new(1, 0, 0, 26),
@@ -3403,15 +3634,17 @@ end
                 end
 
 
-
                 return sectionTypes
             end
+
 
             return tabTypes
         end
 
+
         return windowTypes
     end
+
 
     return library
 end
